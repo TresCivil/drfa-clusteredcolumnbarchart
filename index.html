@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clustered Column Chart Template</title>
+<!-- CLUSTERED_TEMPLATE_VERSION 2 (2026-07-07) -->
+<style>
+  :root {
+    --card-bg: #ffffff;
+    --card-border: #e5e7eb;      /* grey 200 */
+    --title-color: #111827;      /* grey 900 */
+    --value-color: #111827;
+    --label-color: #686c75;      /* Menu/text muted */
+    --baseline: #e5e7eb;
+    --font: "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --radius-xl: 12px;
+  }
+
+  body.dark {
+    --card-bg: #111827;
+    --card-border: #374151;
+    --title-color: #f3f4f6;
+    --value-color: #ffffff;
+    --label-color: #9ca3af;
+    --baseline: #374151;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-xl);
+    padding: 16px 20px 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .card-title {
+    font-size: var(--fs-title, 16px);
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 10px;
+    flex: 0 0 auto;
+  }
+  body.dark .card-title { color: var(--title-color); }
+
+  .content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .content.legend-right {
+    flex-direction: row;
+    align-items: center;
+    gap: 22px;
+  }
+  .content.legend-right .legend {
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 10px;
+    padding-top: 0;
+  }
+
+  .plot {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 18px;
+    border-bottom: 2px solid var(--baseline);
+    padding: 0 6px;
+  }
+
+  .group {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 180px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .colwrap {
+    flex: 1 1 0;
+    min-width: 10px;
+    max-width: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+  }
+
+  .col-value {
+    font-size: var(--fs-value, 12.5px);
+    font-weight: 600;
+    color: var(--value-color);
+    white-space: nowrap;
+    margin-bottom: 4px;
+  }
+
+  .col {
+    width: 100%;
+    border-radius: 4px 4px 0 0;   /* Figma radius token s on top corners */
+    transition: opacity .15s ease;
+    cursor: default;
+  }
+  .plot.hovering .col { opacity: .4; }
+  .plot.hovering .col.active { opacity: 1; }
+
+  .cats {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-around;
+    gap: 18px;
+    padding: 6px 6px 0;
+  }
+  .cat-label {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 180px;
+    text-align: center;
+    font-size: var(--fs-axis, 12.5px);
+    color: var(--label-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .legend {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    padding-top: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-legend, 12.5px);
+    color: var(--title-color);
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #1f2430;
+    color: #fff;
+    font-size: 11.5px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity .12s ease;
+    white-space: nowrap;
+    z-index: 10;
+  }
+  .tooltip.show { opacity: 1; }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--label-color);
+    font-size: 12.5px;
+  }
+
+  /* ---------- Loading overlay ---------- */
+  .loading {
+    position: absolute;
+    inset: 0;
+    background: var(--card-bg);
+    border-radius: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    z-index: 5;
+    opacity: 1;
+    transition: opacity .25s ease;
+  }
+  .loading.hide { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid var(--card-border);
+    border-top-color: #17B751;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 12.5px; color: var(--label-color); }
+
+  @media (max-width: 420px) {
+    .card { padding: 12px 14px 10px; }
+    .card-title { font-size: 14px; }
+    .col-value { font-size: 10.5px; }
+    .cat-label, .legend-item { font-size: 11px; }
+    .plot, .cats { gap: 10px; }
+    .group { gap: 4px; }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading chart…</div>
+    </div>
+    <div class="card-title" id="chartTitle"></div>
+    <div class="content" id="content">
+      <div class="main">
+        <div class="plot" id="plot"></div>
+        <div class="cats" id="cats"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+  <div class="tooltip" id="tooltip"></div>
+
+<script>
+(function () {
+  "use strict";
+  console.log("DRFA clustered column CLUSTERED_TEMPLATE_VERSION 2");
+
+  var loadingHidden = false;
+  function hideLoading() {
+    if (loadingHidden) return;
+    loadingHidden = true;
+    var l = document.getElementById("loading");
+    if (l) l.classList.add("hide");
+  }
+  setTimeout(hideLoading, 2500);
+
+  /* ============================================================
+     CONFIG — all overridable per chart via the payload.
+     Data rows: { category, series, value } (long format, like the
+     stacked bar template). Duplicate category+series pairs are summed.
+     ============================================================ */
+  var CONFIG = {
+    title: "EW Category Expenditure",
+    categoryField: "category",
+    seriesField: "series",
+    valueField: "value",
+    currencySymbol: "$",
+    darkMode: false,
+    showLegend: true,
+    legendPosition: "bottom", // "bottom" (Figma) | "right"
+    valueLabels: "compact",   // "compact" | "full" | "none"
+    maxValue: null,           // null = auto from data
+
+    // Named series colours (case-insensitive); extras rotate the palette
+    seriesColors: {
+      "Actuals":     "#5FBF77",
+      "Commitments": "#118E3F",
+      "EW":     "rgba(59, 130, 246, 1)",
+      "IRW":    "rgba(20, 184, 166, 1)",
+      "EPAR":   "rgba(91, 3, 255, 1)",
+      "EPA-RW": "rgba(91, 3, 255, 1)"
+    },
+    seriesOrder: null,        // e.g. ["Actuals", "Commitments"]; null = first-seen
+    accentPalette: ["#17B751", "#FACC15", "#F7630C", "#6366F1",
+                    "#EF4444", "#10B981", "#0095FF", "#F64E60",
+                    "#3EAC2E", "#118E3F", "#93C5FD", "#7125EB"],
+
+    data: [
+      { category: "EW",     series: "Actuals",     value: 33000000 },
+      { category: "EW",     series: "Commitments", value: 1000000 },
+      { category: "IRW",    series: "Actuals",     value: 14000000 },
+      { category: "IRW",    series: "Commitments", value: 1000000 },
+      { category: "EPA-RW", series: "Actuals",     value: 2000000 },
+      { category: "EPA-RW", series: "Commitments", value: 1000000 }
+    ]
+  };
+  /* ============================================================ */
+
+  var state = {
+    title: CONFIG.title,
+    categoryField: CONFIG.categoryField,
+    seriesField: CONFIG.seriesField,
+    valueField: CONFIG.valueField,
+    currencySymbol: CONFIG.currencySymbol,
+    darkMode: CONFIG.darkMode,
+    showLegend: CONFIG.showLegend,
+    legendPosition: CONFIG.legendPosition,
+    valueLabels: CONFIG.valueLabels,
+    maxValue: CONFIG.maxValue,
+    seriesColors: null,
+    seriesOrder: null,
+    categoryOrder: null,
+    fontSizes: null,
+    background: null,
+    data: []
+  };
+
+  // ---------- helpers ----------
+  function getField(row, field) {
+    if (row[field] != null) return row[field];
+    var lower = String(field).toLowerCase();
+    for (var k in row) {
+      if (k.toLowerCase() === lower) return row[k];
+    }
+    return null;
+  }
+  function fmtFull(v) {
+    return state.currencySymbol + Math.round(v).toLocaleString("en-US");
+  }
+  function fmtCompact(v) {
+    var s = state.currencySymbol;
+    if (v >= 1e9) return s + trim((v / 1e9).toFixed(1)) + "B";
+    if (v >= 1e6) return s + trim((v / 1e6).toFixed(v >= 1e7 ? 0 : 1)) + "M";
+    if (v >= 1e3) return s + trim((v / 1e3).toFixed(0)) + "K";
+    return s + Math.round(v);
+  }
+  function trim(x) { return String(x).replace(/\.0$/, ""); }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function namedColor(name) {
+    var map = state.seriesColors || CONFIG.seriesColors;
+    if (!map || name == null) return null;
+    var key = String(name).trim().toLowerCase();
+    for (var k in map) {
+      if (String(k).trim().toLowerCase() === key) return map[k];
+    }
+    return null;
+  }
+  function colorFor(name, i) {
+    return namedColor(name) ||
+      CONFIG.accentPalette[i % CONFIG.accentPalette.length];
+  }
+  function resolveSeriesColors(raw) {
+    if (!raw) return null;
+    if (Array.isArray(raw)) {
+      var m = {};
+      raw.forEach(function (item) {
+        if (!item || typeof item !== "object") return;
+        var n = getField(item, "name");
+        var c = getField(item, "color");
+        if (n != null && c != null) m[String(n).trim()] = String(c);
+      });
+      return Object.keys(m).length ? m : null;
+    }
+    if (typeof raw === "object") return raw;
+    return null;
+  }
+  function resolveStringArray(raw) {
+    if (!Array.isArray(raw)) return null;
+    var out = raw.map(function (item) {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        var v = item.Value || item.value || Object.values(item)[0];
+        return v != null ? String(v) : null;
+      }
+      return null;
+    }).filter(function (x) { return x; });
+    return out.length ? out : null;
+  }
+
+  function normalise(rows) {
+    if (!Array.isArray(rows)) return [];
+    var grouped = {};
+    rows.forEach(function (r) {
+      if (r == null) return;
+      var cat = getField(r, state.categoryField);
+      var ser = getField(r, state.seriesField);
+      var val = getField(r, state.valueField);
+      if (cat == null || val == null) return;
+      var num = typeof val === "number" ? val : parseFloat(String(val).replace(/[^0-9.\-]/g, ""));
+      if (!isFinite(num)) return;
+      var ck = String(cat).trim();
+      if (!ck) return;
+      var sk = ser == null ? "Value" : String(ser).trim() || "Value";
+      var key = ck + "\u0000" + sk;
+      grouped[key] = (grouped[key] || 0) + num;
+    });
+    return Object.keys(grouped).map(function (k) {
+      var parts = k.split("\u0000");
+      return { category: parts[0], series: parts[1], value: grouped[k] };
+    });
+  }
+
+  // ---------- render ----------
+  function render() {
+    document.body.classList.toggle("dark", !!state.darkMode);
+
+    // background overrides
+    var bg = state.background || {};
+    var bgVal = state.darkMode ? getField(bg, "dark") : getField(bg, "light");
+    var borderVal = state.darkMode ? getField(bg, "borderDark") : getField(bg, "borderLight");
+    if (bgVal) document.documentElement.style.setProperty("--card-bg", String(bgVal));
+    else document.documentElement.style.removeProperty("--card-bg");
+    if (borderVal) document.documentElement.style.setProperty("--card-border", String(borderVal));
+    else document.documentElement.style.removeProperty("--card-border");
+
+    // font size overrides
+    var fsMap = { title: "--fs-title", value: "--fs-value",
+                  axis: "--fs-axis", legend: "--fs-legend" };
+    for (var fk in fsMap) {
+      var fv = state.fontSizes ? getField(state.fontSizes, fk) : null;
+      if (fv != null && +fv > 0)
+        document.documentElement.style.setProperty(fsMap[fk], (+fv) + "px");
+      else
+        document.documentElement.style.removeProperty(fsMap[fk]);
+    }
+
+    document.getElementById("chartTitle").textContent = state.title;
+    document.getElementById("content").classList.toggle("legend-right",
+      state.legendPosition === "right");
+    var plot = document.getElementById("plot");
+    var cats = document.getElementById("cats");
+    var legend = document.getElementById("legend");
+    plot.innerHTML = ""; cats.innerHTML = ""; legend.innerHTML = "";
+
+    var old = document.querySelector(".empty-state");
+    if (old) old.remove();
+    plot.style.display = ""; cats.style.display = ""; legend.style.display = "";
+
+    var data = state.data;
+    if (!data.length) {
+      plot.style.display = "none"; cats.style.display = "none"; legend.style.display = "none";
+      var e = document.createElement("div");
+      e.className = "empty-state";
+      e.textContent = "Waiting for data from Power Apps…";
+      document.querySelector(".card").appendChild(e);
+      return;
+    }
+
+    hideLoading();
+
+    // categories and series, in order
+    var catSeen = [], serSeen = [];
+    data.forEach(function (d) {
+      if (catSeen.indexOf(d.category) < 0) catSeen.push(d.category);
+      if (serSeen.indexOf(d.series) < 0) serSeen.push(d.series);
+    });
+    var categories = state.categoryOrder && state.categoryOrder.length
+      ? state.categoryOrder.filter(function (c) { return catSeen.indexOf(c) >= 0; })
+      : catSeen;
+    var seriesOrder = (state.seriesOrder && state.seriesOrder.length
+      ? state.seriesOrder : (CONFIG.seriesOrder || [])).slice();
+    serSeen.forEach(function (x) { if (seriesOrder.indexOf(x) < 0) seriesOrder.push(x); });
+
+    var maxV = 0;
+    data.forEach(function (d) { if (d.value > maxV) maxV = d.value; });
+    var scaleMax = state.maxValue != null && +state.maxValue > 0
+      ? +state.maxValue : maxV * 1.02;
+    if (scaleMax <= 0) scaleMax = 1;
+
+    var tooltip = document.getElementById("tooltip");
+
+    categories.forEach(function (cat) {
+      var group = document.createElement("div");
+      group.className = "group";
+
+      seriesOrder.forEach(function (ser, si) {
+        var cell = data.find(function (d) { return d.category === cat && d.series === ser; });
+        if (!cell) return;
+        var wrap = document.createElement("div");
+        wrap.className = "colwrap";
+
+        if (state.valueLabels !== "none") {
+          var vl = document.createElement("div");
+          vl.className = "col-value";
+          vl.textContent = state.valueLabels === "full"
+            ? fmtFull(cell.value) : fmtCompact(cell.value);
+          wrap.appendChild(vl);
+        }
+
+        var col = document.createElement("div");
+        col.className = "col";
+        col.style.height = Math.max(1.5, cell.value / scaleMax * 100) + "%";
+        col.style.background = colorFor(ser, si);
+
+        col.addEventListener("mousemove", function (ev) {
+          plot.classList.add("hovering");
+          col.classList.add("active");
+          tooltip.innerHTML = "<strong>" + escapeHtml(cat) + " · " + escapeHtml(ser) +
+            "</strong>&nbsp; " + fmtFull(cell.value);
+          tooltip.style.left = (ev.clientX + 12) + "px";
+          tooltip.style.top = (ev.clientY - 10) + "px";
+          tooltip.classList.add("show");
+        });
+        col.addEventListener("mouseleave", function () {
+          plot.classList.remove("hovering");
+          col.classList.remove("active");
+          tooltip.classList.remove("show");
+        });
+
+        wrap.appendChild(col);
+        group.appendChild(wrap);
+      });
+
+      plot.appendChild(group);
+
+      var cl = document.createElement("div");
+      cl.className = "cat-label";
+      cl.textContent = cat;
+      cl.title = cat;
+      cats.appendChild(cl);
+    });
+
+    // legend
+    if (state.showLegend !== false) {
+      seriesOrder.forEach(function (ser, si) {
+        if (serSeen.indexOf(ser) < 0) return;
+        var item = document.createElement("div");
+        item.className = "legend-item";
+        item.innerHTML = '<span class="legend-dot" style="background:' + colorFor(ser, si) + '"></span>' +
+          escapeHtml(ser);
+        legend.appendChild(item);
+      });
+    } else {
+      legend.style.display = "none";
+    }
+  }
+
+  // ---------- payload ----------
+  function applyPayload(payload) {
+    if (!payload) return;
+    if (typeof payload === "string") {
+      try { payload = JSON.parse(payload); } catch (e) { return; }
+    }
+    if (Array.isArray(payload)) {
+      state.data = normalise(payload);
+    } else {
+      if (payload.title)         state.title = String(payload.title);
+      if (payload.categoryField) state.categoryField = String(payload.categoryField);
+      if (payload.seriesField)   state.seriesField = String(payload.seriesField);
+      if (payload.valueField)    state.valueField = String(payload.valueField);
+      if (payload.currencySymbol !== undefined) state.currencySymbol = String(payload.currencySymbol);
+      if (payload.showLegend !== undefined)
+        state.showLegend = !(payload.showLegend === false || payload.showLegend === "false");
+      if (payload.legendPosition) state.legendPosition = String(payload.legendPosition);
+      if (payload.valueLabels)   state.valueLabels = String(payload.valueLabels);
+      if (payload.maxValue !== undefined) state.maxValue = payload.maxValue;
+      if (payload.seriesColors !== undefined) state.seriesColors = resolveSeriesColors(payload.seriesColors);
+      if (payload.seriesOrder !== undefined)  state.seriesOrder = resolveStringArray(payload.seriesOrder);
+      if (payload.categoryOrder !== undefined) state.categoryOrder = resolveStringArray(payload.categoryOrder);
+      if (payload.fontSizes !== undefined)  state.fontSizes = payload.fontSizes;
+      if (payload.background !== undefined) state.background = payload.background;
+      var dm = payload.darkMode != null ? payload.darkMode
+             : payload.darkmode != null ? payload.darkmode : null;
+      if (dm != null) state.darkMode = (dm === true || dm === "true" || dm === 1 || dm === "1");
+      if (payload.data) state.data = normalise(payload.data);
+    }
+    render();
+  }
+
+  window.addEventListener("message", function (ev) {
+    var msg = ev.data;
+    if (msg == null) return;
+    if (typeof msg === "string") {
+      try { msg = JSON.parse(msg); } catch (e) { return; }
+    }
+    if (msg.type && msg.type !== "chartData") return;
+    applyPayload(msg);
+  });
+
+  function initFromHash() {
+    try {
+      var h = window.location.hash;
+      if (!h || h.length < 2) return;
+      applyPayload(JSON.parse(decodeURIComponent(h.substring(1))));
+    } catch (e) { /* ignore */ }
+  }
+  window.addEventListener("hashchange", initFromHash);
+
+  window.updateChart = applyPayload;
+
+  state.data = normalise(CONFIG.data);
+  initFromHash();
+  render();
+  window.addEventListener("resize", render);
+})();
+</script>
+</body>
+</html>
