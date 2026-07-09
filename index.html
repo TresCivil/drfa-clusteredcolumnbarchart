@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clustered Column Chart Template</title>
-<!-- CLUSTERED_TEMPLATE_VERSION 2 (2026-07-07) -->
+<!-- CLUSTERED_TEMPLATE_VERSION 3 (2026-07-08) -->
 <style>
   :root {
     --card-bg: #ffffff;
@@ -73,13 +73,14 @@
   }
   .content.legend-right {
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;      /* let the plot keep its full height */
     gap: 22px;
   }
   .content.legend-right .legend {
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
+    align-self: center;        /* legend itself stays vertically centred */
     gap: 10px;
     padding-top: 0;
   }
@@ -254,7 +255,7 @@
 <script>
 (function () {
   "use strict";
-  console.log("DRFA clustered column CLUSTERED_TEMPLATE_VERSION 2");
+  console.log("DRFA clustered column CLUSTERED_TEMPLATE_VERSION 3");
 
   var loadingHidden = false;
   function hideLoading() {
