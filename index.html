@@ -91,7 +91,7 @@
     display: flex;
     align-items: stretch;
     justify-content: space-around;
-    gap: 18px;
+    gap: var(--plot-gap, 18px);
     border-bottom: 2px solid var(--baseline);
     padding: 0 6px;
   }
@@ -280,30 +280,35 @@
     darkMode: false,
     showLegend: true,
     legendPosition: "bottom", // "bottom" (Figma) | "right"
+    showCategoryLabels: false, // false = hide the x-axis label row entirely
+    columnGap: 8,              // px between columns/groups in the plot
     valueLabels: "compact",   // "compact" | "full" | "none"
     maxValue: null,           // null = auto from data
 
     // Named series colours (case-insensitive); extras rotate the palette
     seriesColors: {
-      "Actuals":     "#5FBF77",
-      "Commitments": "#118E3F",
+      "Actuals":     "#F7630C",
+      "Commitments": "#6366F1",
       "EW":     "rgba(59, 130, 246, 1)",
       "IRW":    "rgba(20, 184, 166, 1)",
       "EPAR":   "rgba(91, 3, 255, 1)",
       "EPA-RW": "rgba(91, 3, 255, 1)"
     },
-    seriesOrder: null,        // e.g. ["Actuals", "Commitments"]; null = first-seen
+    seriesOrder: ["Actuals", "Commitments"], // null = first-seen; set explicitly to control legend order
     accentPalette: ["#17B751", "#FACC15", "#F7630C", "#6366F1",
                     "#EF4444", "#10B981", "#0095FF", "#F64E60",
                     "#3EAC2E", "#118E3F", "#93C5FD", "#7125EB"],
 
+    // Demo data — one bar per category (no clustering), colour carries the type.
+    // Real usage: point categoryField at a unique key (e.g. transaction/date)
+    // when you don't want grouped/clustered columns.
     data: [
-      { category: "EW",     series: "Actuals",     value: 33000000 },
-      { category: "EW",     series: "Commitments", value: 1000000 },
-      { category: "IRW",    series: "Actuals",     value: 14000000 },
-      { category: "IRW",    series: "Commitments", value: 1000000 },
-      { category: "EPA-RW", series: "Actuals",     value: 2000000 },
-      { category: "EPA-RW", series: "Commitments", value: 1000000 }
+      { category: "1", series: "Commitments", value: 14000000 },
+      { category: "2", series: "Actuals",      value: 33000000 },
+      { category: "3", series: "Commitments",  value: 5000000  },
+      { category: "4", series: "Actuals",      value: 5000000  },
+      { category: "5", series: "Commitments",  value: 5000000  },
+      { category: "6", series: "Commitments",  value: 2000000  }
     ]
   };
   /* ============================================================ */
@@ -317,6 +322,8 @@
     darkMode: CONFIG.darkMode,
     showLegend: CONFIG.showLegend,
     legendPosition: CONFIG.legendPosition,
+    showCategoryLabels: CONFIG.showCategoryLabels,
+    columnGap: CONFIG.columnGap,
     valueLabels: CONFIG.valueLabels,
     maxValue: CONFIG.maxValue,
     seriesColors: null,
@@ -444,6 +451,8 @@
     document.getElementById("chartTitle").textContent = state.title;
     document.getElementById("content").classList.toggle("legend-right",
       state.legendPosition === "right");
+    document.documentElement.style.setProperty("--plot-gap",
+      (state.columnGap != null ? +state.columnGap : 18) + "px");
     var plot = document.getElementById("plot");
     var cats = document.getElementById("cats");
     var legend = document.getElementById("legend");
@@ -530,12 +539,15 @@
 
       plot.appendChild(group);
 
-      var cl = document.createElement("div");
-      cl.className = "cat-label";
-      cl.textContent = cat;
-      cl.title = cat;
-      cats.appendChild(cl);
+      if (state.showCategoryLabels !== false) {
+        var cl = document.createElement("div");
+        cl.className = "cat-label";
+        cl.textContent = cat;
+        cl.title = cat;
+        cats.appendChild(cl);
+      }
     });
+    cats.style.display = state.showCategoryLabels === false ? "none" : "";
 
     // legend
     if (state.showLegend !== false) {
@@ -569,6 +581,9 @@
       if (payload.showLegend !== undefined)
         state.showLegend = !(payload.showLegend === false || payload.showLegend === "false");
       if (payload.legendPosition) state.legendPosition = String(payload.legendPosition);
+      if (payload.showCategoryLabels !== undefined)
+        state.showCategoryLabels = !(payload.showCategoryLabels === false || payload.showCategoryLabels === "false");
+      if (payload.columnGap !== undefined) state.columnGap = payload.columnGap;
       if (payload.valueLabels)   state.valueLabels = String(payload.valueLabels);
       if (payload.maxValue !== undefined) state.maxValue = payload.maxValue;
       if (payload.seriesColors !== undefined) state.seriesColors = resolveSeriesColors(payload.seriesColors);
